@@ -56,11 +56,106 @@ function lex(expr)
       col = col + 1
     end
   end
+  local eof = Token:new("EOF", nil, line, col)
+  table.insert(tokens, eof)
   return tokens
 end
 
+Atom = {}
+
+function Atom:new(value)
+  local new_atom = {
+    kind = "Atom",
+    value = value,
+  }
+  self.__index = self
+  return setmetatable(new_atom, self)
+end
+
+List = {}
+
+function List:new(value)
+  local new_list = {
+    kind = "List",
+    value = value,
+  }
+  self.__index = self
+  return setmetatable(new_list, self)
+end
+
+Parser = {}
+
+function Parser:new(tokens)
+  local new_parser = {
+    tokens = tokens,
+    current = 1,
+    ast = {},
+  }
+  self.__index = self
+  return setmetatable(new_parser, self)
+end
+
+function Parser:current_token()
+  return self.tokens[self.current]
+end
+
+function Parser:is_end()
+  local token = self:current_token()
+  return token.kind == "EOF"
+end
+
+function Parser:advance()
+  if not self:is_end() then
+    self.current = self.current + 1
+  end
+end
+
+function Parser:check(expected)
+  local token = self:current_token()
+  return token.kind == expected
+end
+
+function Parser:expect(expected)
+  assert(self:check(expected), "expected " .. expected)
+  self:advance()
+end
+
+function Parser:parse_list()
+  self:expect("LParen")
+  local value = {}
+  while not self:check("RParen") and not self:is_end() do
+    table.insert(value, self:parse_expr())
+  end
+  self:expect("RParen")
+  return List:new(value)
+end
+
+function Parser:parse_expr()
+  local token = self:current_token()
+  if token.kind == "LParen" then
+    print("LParen")
+    return self:parse_list()
+  elseif token.kind == "Atom" then
+    print("Atom")
+    self:advance()
+    return Atom:new(token.lexeme)
+  elseif token.kind == "RParen" then
+    print("RParen")
+    print("error: unexpected RParen")
+  else
+    print("unknown token?")
+  end
+end
+
 function parse(tokens)
-  return "foo"
+  local parser = Parser:new(tokens)
+  parser.parse_expr()
+  return parser.ast
+  -- local ast = {}
+  -- for index, value in ipairs(tokens) do
+  --   pprint(value)
+  -- end
+  -- return ast
 end
 
 function read(expr)
@@ -120,7 +215,7 @@ function test_lex()
   print("running test_lex...")
   local expr = "(add 2 (mult 3 4))"
   local tokens = lex(expr)
-  assert_num_tokens_lexed(tokens, 9)
+  assert_num_tokens_lexed(tokens, 10)
   assert_token_pos(tokens[1], 1, 1)
   assert_token_pos(tokens[2], 1, 2)
   assert_token_pos(tokens[3], 1, 6)
@@ -130,6 +225,7 @@ function test_lex()
   assert_token_pos(tokens[7], 1, 16)
   assert_token_pos(tokens[8], 1, 17)
   assert_token_pos(tokens[9], 1, 18)
+  assert_token_pos(tokens[10], 1, 19)
 end
 
 function test_lex_multiline()
@@ -137,7 +233,7 @@ function test_lex_multiline()
   local expr = [[(add 2
                    (mult 3 4))]]
   local tokens = lex(expr)
-  assert_num_tokens_lexed(tokens, 9)
+  assert_num_tokens_lexed(tokens, 10)
   assert_token_pos(tokens[1], 1, 1)
   assert_token_pos(tokens[2], 1, 2)
   assert_token_pos(tokens[3], 1, 6)
@@ -147,7 +243,108 @@ function test_lex_multiline()
   assert_token_pos(tokens[7], 2, 28)
   assert_token_pos(tokens[8], 2, 29)
   assert_token_pos(tokens[9], 2, 30)
+  assert_token_pos(tokens[10], 2, 31)
+end
+
+function assert_parser_current(val, expected)
+  local msg = "parser.current is " .. val .. " but expected " .. expected
+  assert(val == expected, msg)
+end
+
+function assert_parser_is_end(val, expected)
+  local msg = "parser.is_end() is " .. tostring(val) .. " but expected " .. tostring(expected)
+  assert(val == expected, msg)
+end
+
+function test_parser_current_token()
+  print("running test_parser_current_token...")
+  local expr = "(add 2 (mult 3 4))"
+  local tokens = lex(expr)
+  local parser = Parser:new(tokens)
+  assert_parser_current(parser.current, 1)
+  assert_token_pos(parser:current_token(), 1, 1)
+  assert_parser_is_end(parser:is_end(), false)
+  parser:advance()
+  assert_parser_current(parser.current, 2)
+  assert_token_pos(parser:current_token(), 1, 2)
+  assert_parser_is_end(parser:is_end(), false)
+  parser:advance()
+  assert_parser_current(parser.current, 3)
+  assert_token_pos(parser:current_token(), 1, 6)
+  assert_parser_is_end(parser:is_end(), false)
+  parser:advance()
+  assert_parser_current(parser.current, 4)
+  assert_token_pos(parser:current_token(), 1, 8)
+  assert_parser_is_end(parser:is_end(), false)
+  parser:advance()
+  assert_parser_current(parser.current, 5)
+  assert_token_pos(parser:current_token(), 1, 9)
+  assert_parser_is_end(parser:is_end(), false)
+  parser:advance()
+  assert_parser_current(parser.current, 6)
+  assert_token_pos(parser:current_token(), 1, 14)
+  assert_parser_is_end(parser:is_end(), false)
+  parser:advance()
+  assert_parser_current(parser.current, 7)
+  assert_token_pos(parser:current_token(), 1, 16)
+  assert_parser_is_end(parser:is_end(), false)
+  parser:advance()
+  assert_parser_current(parser.current, 8)
+  assert_token_pos(parser:current_token(), 1, 17)
+  assert_parser_is_end(parser:is_end(), false)
+  parser:advance()
+  assert_parser_current(parser.current, 9)
+  assert_token_pos(parser:current_token(), 1, 18)
+  assert_parser_is_end(parser:is_end(), false)
+  parser:advance()
+  assert_parser_current(parser.current, 10)
+  assert_token_pos(parser:current_token(), 1, 19)
+  assert_parser_is_end(parser:is_end(), true)
+end
+
+function assert_expr_kind(value, expected)
+  local msg = "got expression kind " .. value .. " expected " .. expected
+  assert(value == expected, msg)
+end
+
+function assert_expr_value_len(value, expected)
+  local msg = "got expression value length " .. value .. " expected " .. expected
+  assert(value == expected, msg)
+end
+
+function test_parser_parse_expr_simple()
+  print("running test_parser_parse_expr_simple...")
+  local expr = "(add 2 2)"
+  local tokens = lex(expr)
+  local parser = Parser:new(tokens)
+  local result = parser:parse_expr()
+  assert_expr_kind(result.kind, "List")
+  assert_expr_value_len(#result.value, 3)
+  assert_expr_kind(result.value[1].kind, "Atom")
+  assert_expr_kind(result.value[2].kind, "Atom")
+  assert_expr_kind(result.value[3].kind, "Atom")
+end
+
+function test_parser_parse_expr()
+  print("running test_parser_parse_expr...")
+  local expr = "(add 2 (mult 3 4))"
+  local tokens = lex(expr)
+  local parser = Parser:new(tokens)
+  local result = parser:parse_expr()
+  assert_expr_kind(result.kind, "List")
+  assert_expr_value_len(#result.value, 3)
+  assert_expr_kind(result.value[1].kind, "Atom")
+  assert_expr_kind(result.value[2].kind, "Atom")
+  assert_expr_kind(result.value[3].kind, "List")
+  local nested = result.value[3]
+  assert_expr_value_len(#nested.value, 3)
+  assert_expr_kind(nested.value[1].kind, "Atom")
+  assert_expr_kind(nested.value[2].kind, "Atom")
+  assert_expr_kind(nested.value[3].kind, "Atom")
 end
 
 test_lex()
 test_lex_multiline()
+test_parser_current_token()
+test_parser_parse_expr_simple()
+test_parser_parse_expr()
