@@ -61,15 +61,26 @@ function lex(expr)
   return tokens
 end
 
-Atom = {}
+Symbol = {}
 
-function Atom:new(value)
-  local new_atom = {
-    kind = "Atom",
+function Symbol:new(value)
+  local new_symbol = {
+    kind = "Symbol",
     value = value,
   }
   self.__index = self
-  return setmetatable(new_atom, self)
+  return setmetatable(new_symbol, self)
+end
+
+Number = {}
+
+function Number:new(value)
+  local new_number = {
+    kind = "Number",
+    value = value,
+  }
+  self.__index = self
+  return setmetatable(new_number, self)
 end
 
 List = {}
@@ -133,14 +144,15 @@ end
 function Parser:parse_expr()
   local token = self:current_token()
   if token.kind == "LParen" then
-    print("LParen")
     return self:parse_list()
   elseif token.kind == "Atom" then
-    print("Atom")
     self:advance()
-    return Atom:new(token.lexeme)
+    local num = tonumber(token.lexeme)
+    if num then
+      return Number:new(num)
+    end
+    return Symbol:new(token.lexeme)
   elseif token.kind == "RParen" then
-    print("RParen")
     print("error: unexpected RParen")
   else
     print("unknown token?")
@@ -149,13 +161,7 @@ end
 
 function parse(tokens)
   local parser = Parser:new(tokens)
-  parser.parse_expr()
-  return parser.ast
-  -- local ast = {}
-  -- for index, value in ipairs(tokens) do
-  --   pprint(value)
-  -- end
-  -- return ast
+  return parser:parse_expr()
 end
 
 function read(expr)
@@ -164,10 +170,51 @@ function read(expr)
   return ast
 end
 
-function eval(expr)
-  local tokens = sleight.lex(expr)
-  local ast = sleight.parse(tokens)
-  return "foo"
+Environment = {}
+
+function Environment:new()
+  local new_environment = {
+    bindings = {
+      add = function(a, b)
+        return a + b
+      end,
+      mult = function(a, b)
+        return a * b
+      end
+    },
+  }
+  self.__index = self
+  return setmetatable(new_environment, self)
+end
+
+function Environment:eval_list(elements)
+  local args = {}
+  for index, expr in ipairs(elements) do
+    table.insert(args, self:eval_expr(expr))
+  end
+  local status, res = pcall(table.unpack(args))
+  return res
+end
+
+function Environment:eval_expr(expr)
+  if expr.kind == "Symbol" then
+    return self.bindings[expr.value]
+  elseif expr.kind == "Number" then
+    return expr.value
+  elseif expr.kind == "List" then
+    return self:eval_list(expr.value)
+  else
+    return
+  end
+end
+
+function eval(ast)
+  local env = Environment:new()
+  return env:eval_expr(ast)
+end
+
+function repl()
+	return
 end
 
 function dump(o)
@@ -320,9 +367,9 @@ function test_parser_parse_expr_simple()
   local result = parser:parse_expr()
   assert_expr_kind(result.kind, "List")
   assert_expr_value_len(#result.value, 3)
-  assert_expr_kind(result.value[1].kind, "Atom")
-  assert_expr_kind(result.value[2].kind, "Atom")
-  assert_expr_kind(result.value[3].kind, "Atom")
+  assert_expr_kind(result.value[1].kind, "Symbol")
+  assert_expr_kind(result.value[2].kind, "Number")
+  assert_expr_kind(result.value[3].kind, "Number")
 end
 
 function test_parser_parse_expr()
@@ -333,14 +380,35 @@ function test_parser_parse_expr()
   local result = parser:parse_expr()
   assert_expr_kind(result.kind, "List")
   assert_expr_value_len(#result.value, 3)
-  assert_expr_kind(result.value[1].kind, "Atom")
-  assert_expr_kind(result.value[2].kind, "Atom")
+  assert_expr_kind(result.value[1].kind, "Symbol")
+  assert_expr_kind(result.value[2].kind, "Number")
   assert_expr_kind(result.value[3].kind, "List")
   local nested = result.value[3]
   assert_expr_value_len(#nested.value, 3)
-  assert_expr_kind(nested.value[1].kind, "Atom")
-  assert_expr_kind(nested.value[2].kind, "Atom")
-  assert_expr_kind(nested.value[3].kind, "Atom")
+  assert_expr_kind(nested.value[1].kind, "Symbol")
+  assert_expr_kind(nested.value[2].kind, "Number")
+  assert_expr_kind(nested.value[3].kind, "Number")
+end
+
+function assert_eval_result(value, expected)
+  local msg = "got eval result " .. value .. " expected " .. expected
+  assert(value == expected, msg)
+end
+
+function test_eval_simple()
+  print("running test_eval_simple...")
+  local expr = "(add 2 2)"
+  local ast = read(expr)
+  local result = eval(ast)
+  assert_eval_result(result, 4)
+end
+
+function test_eval()
+  print("running test_eval...")
+  local expr = "(add 2 (mult 3 4))"
+  local ast = read(expr)
+  local result = eval(ast)
+  assert_eval_result(result, 14)
 end
 
 test_lex()
@@ -348,3 +416,5 @@ test_lex_multiline()
 test_parser_current_token()
 test_parser_parse_expr_simple()
 test_parser_parse_expr()
+test_eval_simple()
+test_eval()
