@@ -214,8 +214,18 @@ function eval(ast)
 end
 
 function repl()
-	return
+  local env = Environment:new()
+  while true do
+    io.write("> ")
+    local expr = io.read()
+    local ast = read(expr)
+    local result = env:eval_expr(ast)
+    io.write(tostring(result))
+    io.write("\n")
+  end
 end
+
+repl()
 
 function dump(o)
   if type(o) == 'table' then
