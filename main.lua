@@ -175,12 +175,18 @@ Environment = {}
 function Environment:new()
   local new_environment = {
     bindings = {
-      add = function(a, b)
+      ["+"] = function(a, b)
         return a + b
       end,
-      mult = function(a, b)
+      ["-"] = function(a, b)
+        return a - b
+      end,
+      ["*"] = function(a, b)
         return a * b
-      end
+      end,
+      ["/"] = function(a, b)
+        return a / b
+      end,
     },
   }
   self.__index = self
@@ -225,7 +231,6 @@ function repl()
   end
 end
 
-repl()
 
 function dump(o)
   if type(o) == 'table' then
@@ -407,7 +412,7 @@ end
 
 function test_eval_simple()
   print("running test_eval_simple...")
-  local expr = "(add 2 2)"
+  local expr = "(+ 2 2)"
   local ast = read(expr)
   local result = eval(ast)
   assert_eval_result(result, 4)
@@ -415,16 +420,29 @@ end
 
 function test_eval()
   print("running test_eval...")
-  local expr = "(add 2 (mult 3 4))"
+  local expr = "(+ 2 (* 3 4))"
   local ast = read(expr)
   local result = eval(ast)
   assert_eval_result(result, 14)
 end
 
-test_lex()
-test_lex_multiline()
-test_parser_current_token()
-test_parser_parse_expr_simple()
-test_parser_parse_expr()
-test_eval_simple()
-test_eval()
+function test()
+  test_lex()
+  test_lex_multiline()
+  test_parser_current_token()
+  test_parser_parse_expr_simple()
+  test_parser_parse_expr()
+  test_eval_simple()
+  test_eval()
+end
+
+
+function main()
+  if #arg == 0 then
+    repl()
+  elseif arg[1] == "test" then
+    test()
+  end
+end
+
+main()
