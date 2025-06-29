@@ -187,6 +187,21 @@ function Environment:new()
       ["/"] = function(a, b)
         return a / b
       end,
+      ["="] = function(a, b)
+        return a == b
+      end,
+      [">"] = function(a, b)
+        return a > b
+      end,
+      [">="] = function(a, b)
+        return a >= b
+      end,
+      ["<"] = function(a, b)
+        return a < b
+      end,
+      ["<="] = function(a, b)
+        return a <= b
+      end,
     },
   }
   self.__index = self
