@@ -56,6 +56,12 @@ function lex(expr)
       col = col + 1
     end
   end
+  local value = table.concat(buffer, "")
+  if value ~= "" then
+    local col_start = col - #buffer
+    local token = Token:new("Atom", value, line, col_start)
+    table.insert(tokens, token)
+  end
   local eof = Token:new("EOF", nil, line, col)
   table.insert(tokens, eof)
   return tokens
@@ -170,6 +176,19 @@ function read(expr)
   return ast
 end
 
+Function = {}
+
+function Function:new(params, body, closure)
+  local new_fn = {
+    kind = "Function",
+    params = params,
+    body = body,
+    closure = closure,
+  }
+  self.__index = self
+  return setmetatable(new_fn, self)
+end
+
 Environment = {}
 
 function Environment:new()
@@ -208,13 +227,75 @@ function Environment:new()
   return setmetatable(new_environment, self)
 end
 
-function Environment:eval_list(elements)
+function Environment:copy()
+  local new_environment = {
+    bindings = {}
+  }
+  for key, value in pairs(self.bindings) do
+    new_environment.bindings[key] = value
+  end
+  self.__index = self
+  return setmetatable(new_environment, self)
+end
+
+function Environment:eval_if(args)
+  assert(#args == 4, "invalid arity: if expects 3 arguments")
+  if self:eval_expr(args[2]) then
+    return self:eval_expr(args[3])
+  else
+    return self:eval_expr(args[4])
+  end
+end
+
+function Environment:eval_define(args)
+  assert(#args == 3, "invalid arity: define expects 2 arguments")
+  if args[3].kind == "List" then
+    self.bindings[args[2].value] = self:eval_expr(args[3])
+  else
+    self.bindings[args[2].value] = args[3].value
+  end
+end
+
+function Environment:eval_lambda(args)
+  assert(#args == 3, "invalid arity: lambda expects 2 arguments")
+  local params = args[2]
+  local body = args[3]
+  local closure = self:copy()
+  return Function:new(params, body, closure)
+end
+
+function Environment:apply(elements)
   local args = {}
   for index, expr in ipairs(elements) do
     table.insert(args, self:eval_expr(expr))
   end
-  local status, res = pcall(table.unpack(args))
-  return res
+  local fn = args[1]
+  if type(fn) == "function" then
+    local status, res = pcall(table.unpack(args))
+    return res
+  elseif fn.kind == "Function" then
+    assert(#fn.params.value == #args - 1, "function receieved incorrect number or params")
+    for i = 1, #fn.params.value, 1 do
+      fn.closure.bindings[fn.params.value[i].value] = args[i + 1]
+    end
+    return fn.closure:eval_expr(fn.body)
+  else
+    print("error: invalid function type")
+  end
+end
+
+function Environment:eval_list(elements)
+  local first = elements[1]
+  local is_symbol = first.kind == "Symbol"
+  if is_symbol and first.value == "if" then
+    return self:eval_if(elements)
+  elseif is_symbol and first.value == "define" then
+    return self:eval_define(elements)
+  elseif is_symbol and first.value == "lambda" then
+    return self:eval_lambda(elements)
+  else
+    return self:apply(elements)
+  end
 end
 
 function Environment:eval_expr(expr)
@@ -441,6 +522,63 @@ function test_eval()
   assert_eval_result(result, 14)
 end
 
+function test_eval_if()
+  print("running test_eval_if...")
+  local expr = "(if (= 2 2) (* 1 1) (+ 1 1))"
+  local ast = read(expr)
+  local result = eval(ast)
+  assert_eval_result(result, 1)
+end
+
+function test_eval_if_else()
+  print("running test_eval_if_else...")
+  local expr = "(if (= 1 2) (* 1 1) (+ 1 1))"
+  local ast = read(expr)
+  local result = eval(ast)
+  assert_eval_result(result, 2)
+end
+
+function test_define()
+  print("running test_define...")
+  local expr = "(define foo 123)"
+  local ast = read(expr)
+  local env = Environment:new()
+  env:eval_expr(ast)
+  local foo = env.bindings["foo"]
+  local eql = foo == 123
+  local msg = "got binding value " .. foo .. " expected " .. 123
+  assert(eql, msg)
+end
+
+function test_lambda()
+  print("running test_lambda...")
+  local expr = "(lambda (x) (+ x 1))"
+  local ast = read(expr)
+  local env = Environment:new()
+  local fn = env:eval_expr(ast)
+  assert(fn.kind == "Function", "got kind " .. fn.kind .. " expected" .. "Function")
+  assert(fn.params.kind == "List", "expected function params to be a list")
+  assert(#fn.params.value == 1, "expected function to have 1 parameter")
+  assert(fn.params.value[1].kind == "Symbol", "expected parameter to be a Symbol")
+  assert(fn.params.value[1].value == "x", "expected parameter to be the Symbol x")
+  assert(fn.body.kind == "List", "expected function body to be a list")
+  assert(#fn.body.value == 3, "expected function body to have 3 elements")
+  assert(fn.body.value[1].kind == "Symbol", "expected parameter to be a Symbol")
+  assert(fn.body.value[1].value == "+", "expected parameter to be the Symbol +")
+end
+
+function test_apply()
+  print("running test_apply...")
+  local expr = "(define incr (lambda (x) (+ x 1)))"
+  local ast = read(expr)
+  local env = Environment:new()
+  env:eval_expr(ast)
+  local fn_expr = "(incr 41)"
+  local fn_ast = read(fn_expr)
+  local result = env:eval_expr(fn_ast)
+  assert(result == 42, "func returned " .. result .. " expected " .. 42)
+end
+
 function test()
   test_lex()
   test_lex_multiline()
@@ -449,6 +587,11 @@ function test()
   test_parser_parse_expr()
   test_eval_simple()
   test_eval()
+  test_eval_if()
+  test_eval_if_else()
+  test_define()
+  test_lambda()
+  test_apply()
 end
 
 
