@@ -11,60 +11,91 @@ function Token:new(kind, lexeme, line, col)
   return setmetatable(new_token, self)
 end
 
-function lex(expr)
-  local tokens = {}
-  local buffer = {}
-  local line = 1
-  local col = 1
+Lexer = {}
+
+function Lexer:new()
+  local new_lexer = {
+    tokens = {},
+    buffer = {},
+    line = 1,
+    col = 1,
+  }
+  self.__index = self
+  return setmetatable(new_lexer, self)
+end
+
+function Lexer:advance_col()
+  self.col = self.col + 1
+end
+
+function Lexer:advance_line()
+  self.line = self.line + 1
+  self.col = 1
+end
+
+function Lexer:clear_buffer()
+  local value = table.concat(self.buffer, "")
+  if value ~= "" then
+    local col_start = self.col - #self.buffer
+    local token = Token:new("Atom", value, self.line, col_start)
+    table.insert(self.tokens, token)
+    self.buffer = {}
+  end
+end
+
+function Lexer:handle_lparen()
+  local token = Token:new("LParen", "(", self.line, self.col)
+  table.insert(self.tokens, token)
+  self:advance_col()
+end
+
+function Lexer:handle_rparen()
+  self:clear_buffer()
+  local token = Token:new("RParen", ")", self.line, self.col)
+  table.insert(self.tokens, token)
+  self:advance_col()
+end
+
+function Lexer:handle_atom()
+  self:clear_buffer()
+  self:advance_col()
+end
+
+function Lexer:handle_newline()
+  self:clear_buffer()
+  self:advance_line()
+end
+
+function Lexer:handle_eof()
+  local eof = Token:new("EOF", nil, self.line, self.col)
+  table.insert(self.tokens, eof)
+end
+
+function Lexer:lex(expr)
   for char in string.gmatch(expr, ".") do
     if char == "(" then
-      local token = Token:new("LParen", char, line, col)
-      table.insert(tokens, token)
-      col = col + 1
+      self:handle_lparen()
     elseif char == ")" then
-      local value = table.concat(buffer, "")
-      if value ~= "" then
-        local col_start = col - #buffer
-        local token = Token:new("Atom", value, line, col_start)
-        table.insert(tokens, token)
-        buffer = {}
-      end
-      local token = Token:new("RParen", char, line, col)
-      table.insert(tokens, token)
-      col = col + 1
-    elseif char == " " and #buffer == 0 then
-      col = col + 1
+      self:handle_rparen()
+    elseif char == " " and #self.buffer == 0 then
+      self:advance_col()
     elseif char == " " then
-      local value = table.concat(buffer, "")
-      local col_start = col - #buffer
-      local token = Token:new("Atom", value, line, col_start)
-      table.insert(tokens, token)
-      buffer = {}
-      col = col + 1
+      self:handle_atom()
     elseif char == "\n" then
-      local value = table.concat(buffer, "")
-      if value ~= "" then
-        local col_start = col - #buffer
-        local token = Token:new("Atom", value, line, col_start)
-        table.insert(tokens, token)
-        buffer = {}
-      end
-      line = line + 1
-      col = 1
+      self:handle_newline()
     else
-      table.insert(buffer, char)
-      col = col + 1
+      table.insert(self.buffer, char)
+      self:advance_col()
     end
   end
-  local value = table.concat(buffer, "")
-  if value ~= "" then
-    local col_start = col - #buffer
-    local token = Token:new("Atom", value, line, col_start)
-    table.insert(tokens, token)
-  end
-  local eof = Token:new("EOF", nil, line, col)
-  table.insert(tokens, eof)
-  return tokens
+  self:clear_buffer()
+  self:handle_eof()
+  return self.tokens
+end
+
+function lex(expr)
+  local lexer = Lexer:new()
+  return lexer:lex(expr)
 end
 
 Symbol = {}
