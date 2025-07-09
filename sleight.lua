@@ -286,7 +286,8 @@ function Environment:new()
       ["<="] = function(a, b)
         return a <= b
       end,
-      ["print"] = print
+      ["print"] = print,
+      ["assert"] = assert,
     },
   }
   self.__index = self
@@ -339,6 +340,7 @@ function Environment:apply(elements)
   local fn = args[1]
   if type(fn) == "function" then
     local status, res = pcall(table.unpack(args))
+    assert(status, res)
     return res
   elseif fn.kind == "Function" then
     assert(#fn.params.value == #args - 1, "function receieved incorrect number or params")
