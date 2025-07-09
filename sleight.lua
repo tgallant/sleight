@@ -254,6 +254,19 @@ function Function:new(params, body, closure)
   return setmetatable(new_fn, self)
 end
 
+Macro = {}
+
+function Macro:new(params, body, closure)
+  local new_macro = {
+    kind = "Macro",
+    params = params,
+    body = body,
+    closure = closure,
+  }
+  self.__index = self
+  return setmetatable(new_macro, self)
+end
+
 Environment = {}
 
 function Environment:new()
@@ -323,6 +336,24 @@ function Environment:eval_define(args)
   end
 end
 
+function Environment:expand_macro(args)
+  assert(#args == 3, "invalid arity: define-macro expects 2 arguments")
+  if args[3].kind == "List" then
+    self.bindings[args[2].value] = self:eval_expr(args[3])
+  else
+    self.bindings[args[2].value] = args[3].value
+  end
+end
+
+function Environment:eval_define_macro(args)
+  assert(#args == 3, "invalid arity: define-macro expects 2 arguments")
+  if args[3].kind == "List" then
+    self.bindings[args[2].value] = self:eval_expr(args[3])
+  else
+    self.bindings[args[2].value] = args[3].value
+  end
+end
+
 function Environment:eval_lambda(args)
   assert(#args == 3, "invalid arity: lambda expects 2 arguments")
   local params = args[2]
@@ -348,6 +379,13 @@ function Environment:apply(elements)
       fn.closure.bindings[fn.params.value[i].value] = args[i + 1]
     end
     return fn.closure:eval_expr(fn.body)
+  elseif fn.kind == "Macro" then
+    assert(#fn.params.value == #args - 1, "macro receieved incorrect number or params")
+    for i = 1, #fn.params.value, 1 do
+      fn.closure.bindings[fn.params.value[i].value] = args[i + 1]
+    end
+    local expanded = self:expand_macro(fn)
+    return fn.closure:eval_expr(expanded)
   else
     print("error: invalid function type")
   end
@@ -370,6 +408,8 @@ function Environment:eval_list(elements)
     return self:eval_if(elements)
   elseif is_symbol and first.value == "define" then
     return self:eval_define(elements)
+  elseif is_symbol and first.value == "define-macro" then
+    return self:eval_define_macro(elements)
   elseif is_symbol and first.value == "lambda" then
     return self:eval_lambda(elements)
   elseif is_symbol and first.value == "begin" then
@@ -425,7 +465,6 @@ function repl()
     io.write("\n")
   end
 end
-
 
 function run_file(path)
   local file = io.open(path, "r")
