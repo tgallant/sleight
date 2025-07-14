@@ -13,7 +13,7 @@ Sleight is a toy scheme implementation written in lua.
 
 ## Defining Macros
 
-- `define-macro`
+- `define-macro` - unhygenic
 
 ## Changelog
 
@@ -22,10 +22,11 @@ Sleight is a toy scheme implementation written in lua.
 - [X] evaluate from file
 - [X] move tests to separate file
 - [ ] add more builtins
-  - [ ] cons
-  - [ ] car
-  - [ ] cdr
+  - [X] cons
+  - [X] car
+  - [X] cdr
   - [ ] null?/symbol?/number?/pair?
+  - [ ] pretty print for lists/pairs
 - [ ] add support for macros
   - [ ] add support for quote
   - [ ] add support for quasiquote
