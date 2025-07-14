@@ -299,6 +299,15 @@ function Environment:new()
       ["<="] = function(a, b)
         return a <= b
       end,
+      ["cons"] = function(a, b)
+        return {a, b}
+      end,
+      ["car"] = function(p)
+        return p[1]
+      end,
+      ["cdr"] = function(p)
+        return p[2]
+      end,
       ["print"] = print,
       ["assert"] = assert,
     },
