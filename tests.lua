@@ -202,7 +202,7 @@ end
 
 function test_parser_parse_expr_string_simple()
   print("running test_parser_parse_expr_string_simple...")
-  local expr = '(print \"hello, world!\")'
+  local expr = '(print "hello, world!")'
   local tokens = lex(expr)
   local parser = Parser:new(tokens)
   local result = parser:parse_expr()
