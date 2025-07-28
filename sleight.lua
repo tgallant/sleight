@@ -170,6 +170,17 @@ function List:new(value)
   return setmetatable(new_list, self)
 end
 
+Boolean = {
+  ["True"] = {
+    kind = "Boolean",
+    value = true
+  },
+  ["False"] = {
+    kind = "Boolean",
+    value = false
+  },
+}
+
 Parser = {}
 
 function Parser:new(tokens)
@@ -217,6 +228,21 @@ function Parser:parse_list()
   return List:new(value)
 end
 
+function Parser:parse_atom()
+  local token = self:current_token()
+  self:advance()
+  if token.lexeme == "#t" then
+    return Boolean.True
+  elseif token.lexeme == "#f" then
+    return Boolean.False
+  end
+  local num = tonumber(token.lexeme)
+  if num then
+    return Number:new(num)
+  end
+  return Symbol:new(token.lexeme)
+end
+
 function Parser:parse_quote()
   self:expect("Quote")
   local value = {Symbol:new("quote"), self:parse_expr()}
@@ -230,12 +256,7 @@ function Parser:parse_expr()
   elseif token.kind == "LParen" then
     return self:parse_list()
   elseif token.kind == "Atom" then
-    self:advance()
-    local num = tonumber(token.lexeme)
-    if num then
-      return Number:new(num)
-    end
-    return Symbol:new(token.lexeme)
+    return self:parse_atom()
   elseif token.kind == "String" then
     self:advance()
     return String:new(token.lexeme)
@@ -457,6 +478,8 @@ function Environment:eval_expr(expr)
   elseif expr.kind == "Number" then
     return expr.value
   elseif expr.kind == "String" then
+    return expr.value
+  elseif expr.kind == "Boolean" then
     return expr.value
   elseif expr.kind == "List" then
     return self:eval_list(expr.value)

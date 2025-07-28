@@ -25,7 +25,7 @@ Sleight is a toy scheme implementation written in lua.
   - [X] cons
   - [X] car
   - [X] cdr
-  - [ ] support booleans
+  - [X] support booleans
   - [ ] support null/nil
   - [ ] support cons pair
   - [ ] null?/symbol?/number?/string?/pair?/list?
