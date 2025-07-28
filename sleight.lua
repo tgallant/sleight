@@ -345,7 +345,33 @@ function Environment:new()
       ["cdr"] = function(p)
         return p[2]
       end,
-      ["print"] = print,
+      ["number?"] = function(a)
+        return type(a) == "number"
+      end,
+      ["string?"] = function(a)
+        return type(a) == "string"
+      end,
+      ["boolean?"] = function(a)
+        return type(a) == "boolean"
+      end,
+      ["symbol?"] = function(a)
+        if type(a) ~= "table" then
+          return false
+        end
+        return a.kind == "Symbol"
+      end,
+      ["list?"] = function(a)
+        if type(a) ~= "table" then
+          return false
+        end
+        return a.kind == "List"
+      end,
+      ["null?"] = function(a)
+        return type(a) == nil
+      end,
+      ["print"] = function(a)
+        print(a)
+      end,
       ["assert"] = assert,
     },
   }
