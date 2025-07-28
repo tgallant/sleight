@@ -49,6 +49,12 @@ function Lexer:clear_buffer()
   end
 end
 
+function Lexer:handle_quote()
+  local token = Token:new("Quote", "'", self.line, self.col)
+  table.insert(self.tokens, token)
+  self:advance_col()
+end
+
 function Lexer:handle_lparen()
   local token = Token:new("LParen", "(", self.line, self.col)
   table.insert(self.tokens, token)
@@ -99,6 +105,8 @@ function Lexer:lex(expr)
       self:handle_string()
     elseif self.string_open then
       self:add_to_buffer(char)
+    elseif char == "'" then
+      self:handle_quote()
     elseif char == "(" then
       self:handle_lparen()
     elseif char == ")" then
@@ -209,9 +217,17 @@ function Parser:parse_list()
   return List:new(value)
 end
 
+function Parser:parse_quote()
+  self:expect("Quote")
+  local value = {Symbol:new("quote"), self:parse_expr()}
+  return List:new(value)
+end
+
 function Parser:parse_expr()
   local token = self:current_token()
-  if token.kind == "LParen" then
+  if token.kind == "Quote" then
+    return self:parse_quote()
+  elseif token.kind == "LParen" then
     return self:parse_list()
   elseif token.kind == "Atom" then
     self:advance()
@@ -410,6 +426,11 @@ function Environment:eval_begin(elements)
   return result
 end
 
+function Environment:eval_quote(elements)
+  assert(#elements == 2, "invalid arity: quote expects 1 argument")
+  return elements[2]
+end
+
 function Environment:eval_list(elements)
   local first = elements[1]
   local is_symbol = first.kind == "Symbol"
@@ -423,6 +444,8 @@ function Environment:eval_list(elements)
     return self:eval_lambda(elements)
   elseif is_symbol and first.value == "begin" then
     return self:eval_begin(elements)
+  elseif is_symbol and first.value == "quote" then
+    return self:eval_quote(elements)
   else
     return self:apply(elements)
   end

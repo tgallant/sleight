@@ -28,7 +28,7 @@ Sleight is a toy scheme implementation written in lua.
   - [ ] null?/symbol?/number?/pair?
   - [ ] pretty print for lists/pairs
 - [ ] add support for macros
-  - [ ] add support for quote
+  - [X] add support for quote
   - [ ] add support for quasiquote
   - [ ] implement macro primitives
   - [ ] handle macros in evaluator

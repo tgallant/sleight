@@ -212,6 +212,33 @@ function test_parser_parse_expr_string_simple()
   assert_expr_kind(result.value[2].kind, "String")
 end
 
+function test_parser_parse_expr_quote()
+  print("running test_parser_parse_expr_quote...")
+  local expr = "(cons 1 '(2 3))"
+  local tokens = lex(expr)
+  local parser = Parser:new(tokens)
+  local result = parser:parse_expr()
+  assert_expr_kind(result.kind, "List")
+  assert_expr_value_len(#result.value, 3)
+  assert_expr_kind(result.value[1].kind, "Symbol")
+  assert_expr_kind(result.value[2].kind, "Number")
+  assert_expr_kind(result.value[3].kind, "List")
+  local quoted = result.value[3]
+  assert_expr_value_len(#quoted.value, 2)
+  assert_expr_kind(quoted.value[1].kind, "Symbol")
+  local symbol = quoted.value[1].value
+  assert(symbol == "quote", "got symbol " .. symbol .. " expected quote")
+  assert_expr_kind(quoted.value[2].kind, "List")
+  local quoted_list = quoted.value[2].value
+  assert_expr_value_len(#quoted_list, 2)
+  assert_expr_kind(quoted_list[1].kind, "Number")
+  local first = quoted_list[1].value
+  assert(first == 2, "got " .. first .. " expected 2")
+  assert_expr_kind(quoted_list[2].kind, "Number")
+  local second = quoted_list[2].value
+  assert(second == 3, "got " .. second .. " expected 3")
+end
+
 function assert_eval_result(value, expected)
   if value == nil then
     value = "nil"
@@ -304,6 +331,15 @@ function test_apply()
   assert(result == 42, "func returned " .. result .. " expected " .. 42)
 end
 
+function test_eval_quote()
+  print("running test_eval_quote...")
+  local expr = "'x"
+  local ast = read(expr)
+  local result = eval(ast)
+  assert(result["kind"] == "Symbol", "expected Symbol got " .. result["kind"])
+  assert(result["value"] == "x", "expected x got " .. result["value"])
+end
+
 function test()
   test_lex()
   test_lex_multiline()
@@ -312,6 +348,7 @@ function test()
   test_parser_parse_expr_simple()
   test_parser_parse_expr()
   test_parser_parse_expr_string_simple()
+  test_parser_parse_expr_quote()
   test_eval_simple()
   test_eval()
   test_eval_string_simple()
@@ -320,6 +357,7 @@ function test()
   test_define()
   test_lambda()
   test_apply()
+  test_eval_quote()
 end
 
 test()
