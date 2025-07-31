@@ -137,6 +137,10 @@ function Symbol:new(value)
   return setmetatable(new_symbol, self)
 end
 
+function Symbol:repr()
+  return self.value
+end
+
 Number = {}
 
 function Number:new(value)
@@ -179,6 +183,14 @@ Boolean = {
     kind = "Boolean",
     value = false
   },
+}
+
+Null = {
+  kind = "Null",
+  value = nil,
+  repr = function ()
+    return "()"
+  end
 }
 
 Parser = {}
@@ -225,6 +237,9 @@ function Parser:parse_list()
     table.insert(value, self:parse_expr())
   end
   self:expect("RParen")
+  if #value == 0 then
+    return Null
+  end
   return List:new(value)
 end
 
@@ -304,6 +319,98 @@ function Macro:new(params, body, closure)
   return setmetatable(new_macro, self)
 end
 
+Cons = {}
+
+function Cons:new(l, r)
+  local new_cons = {
+    kind = "Cons",
+    car = l,
+    cdr = r,
+  }
+  self.__index = self
+  return setmetatable(new_cons, self)
+end
+
+function Cons:list_repr()
+  local elements = {}
+  local cur = self
+  while is_pair(cur) do
+    table.insert(elements, str(cur.car))
+    cur = cur.cdr
+  end
+  local out = "("
+  for index, value in ipairs(elements) do
+    out = out .. value
+    if index == #elements and is_null(cur) then
+      out = out .. ")"
+    elseif index == #elements then
+      out = out .. ". " .. cur .. ")"
+    else
+      out = out .. " "
+    end
+  end
+  return out
+end
+
+function Cons:repr()
+  if is_list(self) then
+    return self:list_repr()
+  end
+	return "(" .. str(self.car) .. " . " .. str(self.cdr) .. ")"
+end
+
+function is_null(val)
+  if type(val) ~= "table" then
+    return false
+  end
+  return val.kind == "Null"
+end
+
+function is_pair(val)
+  if type(val) ~= "table" then
+    return false
+  end
+  return val.kind == "Cons"
+end
+
+function is_list(val)
+  if is_null(val) then
+    return true
+  end
+  if is_pair(val) then
+    return is_list(val.cdr)
+  end
+  return false
+end
+
+function cons(l, r)
+  return Cons:new(l, r)
+end
+
+function car(p)
+	return p.car
+end
+
+function cdr(p)
+	return p.cdr
+end
+
+function str(val)
+  if val == true then
+    return "#t"
+  elseif val == false then
+    return "#f"
+  elseif type(val) ~= "table" then
+    return tostring(val)
+  else
+    return val:repr()
+  end
+end
+
+function pprint(val)
+  print(str(val))
+end
+
 Environment = {}
 
 function Environment:new()
@@ -336,15 +443,6 @@ function Environment:new()
       ["<="] = function(a, b)
         return a <= b
       end,
-      ["cons"] = function(a, b)
-        return {a, b}
-      end,
-      ["car"] = function(p)
-        return p[1]
-      end,
-      ["cdr"] = function(p)
-        return p[2]
-      end,
       ["number?"] = function(a)
         return type(a) == "number"
       end,
@@ -369,9 +467,10 @@ function Environment:new()
       ["null?"] = function(a)
         return type(a) == nil
       end,
-      ["print"] = function(a)
-        print(a)
-      end,
+      ["cons"] = cons,
+      ["car"] = car,
+      ["cdr"] = cdr,
+      ["print"] = pprint,
       ["assert"] = assert,
     },
   }
@@ -542,8 +641,7 @@ function repl()
     local expr = io.read()
     local ast = read(expr)
     local result = env:eval_expr(ast)
-    io.write(tostring(result))
-    io.write("\n")
+    pprint(result)
   end
 end
 
