@@ -489,6 +489,9 @@ function Environment:new()
       ["<="] = function(a, b)
         return a <= b
       end,
+      ["not"] = function(a)
+        return not a
+      end,
       ["number?"] = function(a)
         return type(a) == "number"
       end,
