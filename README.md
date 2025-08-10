@@ -21,7 +21,7 @@ Sleight is a toy scheme implementation written in lua.
 - [X] add print function
 - [X] evaluate from file
 - [X] move tests to separate file
-- [ ] add more builtins
+- [X] add more builtins
   - [X] cons
   - [X] car
   - [X] cdr
@@ -31,11 +31,15 @@ Sleight is a toy scheme implementation written in lua.
   - [X] update parse + eval to use cons paris
   - [X] null?/symbol?/number?/string?/pair?/list?
   - [X] pretty print for scheme values
+- [ ] builtin testing
+  - [X] test! function that runs all fns named "test-"
+  - [ ] make sure tests always run in the same order
 - [ ] add support for macros
   - [X] add support for quote
   - [ ] add support for quasiquote
   - [ ] implement macro primitives
   - [ ] handle macros in evaluator
+- [ ] support define function syntax
 - [ ] start building standard lib
 - [ ] better error handling
 - [ ] repl history
