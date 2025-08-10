@@ -169,17 +169,20 @@ function assert_expr_value_len(value, expected)
   assert(value == expected, msg)
 end
 
+function cons_list(el)
+end
+
 function test_parser_parse_expr_simple()
   print("running test_parser_parse_expr_simple...")
   local expr = "(add 2 2)"
   local tokens = lex(expr)
   local parser = Parser:new(tokens)
   local result = parser:parse_expr()
-  assert_expr_kind(result.kind, "List")
-  assert_expr_value_len(#result.value, 3)
-  assert_expr_kind(result.value[1].kind, "Symbol")
-  assert_expr_kind(result.value[2].kind, "Number")
-  assert_expr_kind(result.value[3].kind, "Number")
+  assert_expr_kind(result.kind, "Cons")
+  assert_expr_value_len(length(result), 3)
+  assert_expr_kind(sleight.nth(0, result).kind, "Symbol")
+  assert_expr_kind(sleight.nth(1, result).kind, "Number")
+  assert_expr_kind(sleight.nth(2, result).kind, "Number")
 end
 
 function test_parser_parse_expr()
@@ -188,16 +191,16 @@ function test_parser_parse_expr()
   local tokens = lex(expr)
   local parser = Parser:new(tokens)
   local result = parser:parse_expr()
-  assert_expr_kind(result.kind, "List")
-  assert_expr_value_len(#result.value, 3)
-  assert_expr_kind(result.value[1].kind, "Symbol")
-  assert_expr_kind(result.value[2].kind, "Number")
-  assert_expr_kind(result.value[3].kind, "List")
-  local nested = result.value[3]
-  assert_expr_value_len(#nested.value, 3)
-  assert_expr_kind(nested.value[1].kind, "Symbol")
-  assert_expr_kind(nested.value[2].kind, "Number")
-  assert_expr_kind(nested.value[3].kind, "Number")
+  assert_expr_kind(result.kind, "Cons")
+  assert_expr_value_len(length(result), 3)
+  assert_expr_kind(sleight.nth(0, result).kind, "Symbol")
+  assert_expr_kind(sleight.nth(1, result).kind, "Number")
+  assert_expr_kind(sleight.nth(2, result).kind, "Cons")
+  local nested = sleight.nth(2, result)
+  assert_expr_value_len(length(nested), 3)
+  assert_expr_kind(sleight.nth(0, nested).kind, "Symbol")
+  assert_expr_kind(sleight.nth(1, nested).kind, "Number")
+  assert_expr_kind(sleight.nth(2, nested).kind, "Number")
 end
 
 function test_parser_parse_expr_string_simple()
@@ -206,10 +209,10 @@ function test_parser_parse_expr_string_simple()
   local tokens = lex(expr)
   local parser = Parser:new(tokens)
   local result = parser:parse_expr()
-  assert_expr_kind(result.kind, "List")
-  assert_expr_value_len(#result.value, 2)
-  assert_expr_kind(result.value[1].kind, "Symbol")
-  assert_expr_kind(result.value[2].kind, "String")
+  assert_expr_kind(result.kind, "Cons")
+  assert_expr_value_len(length(result), 2)
+  assert_expr_kind(sleight.nth(0, result).kind, "Symbol")
+  assert_expr_kind(sleight.nth(1, result).kind, "String")
 end
 
 function test_parser_parse_expr_quote()
@@ -218,24 +221,22 @@ function test_parser_parse_expr_quote()
   local tokens = lex(expr)
   local parser = Parser:new(tokens)
   local result = parser:parse_expr()
-  assert_expr_kind(result.kind, "List")
-  assert_expr_value_len(#result.value, 3)
-  assert_expr_kind(result.value[1].kind, "Symbol")
-  assert_expr_kind(result.value[2].kind, "Number")
-  assert_expr_kind(result.value[3].kind, "List")
-  local quoted = result.value[3]
-  assert_expr_value_len(#quoted.value, 2)
-  assert_expr_kind(quoted.value[1].kind, "Symbol")
-  local symbol = quoted.value[1].value
+  assert_expr_kind(result.kind, "Cons")
+  assert_expr_value_len(length(result), 3)
+  assert_expr_kind(sleight.nth(0, result).kind, "Symbol")
+  assert_expr_kind(sleight.nth(1, result).kind, "Number")
+  assert_expr_kind(sleight.nth(2, result).kind, "Cons")
+  local quoted = sleight.nth(2, result)
+  assert_expr_value_len(length(quoted), 3)
+  assert_expr_kind(sleight.nth(0, result).kind, "Symbol")
+  assert_expr_kind(sleight.nth(0, quoted).kind, "Symbol")
+  local symbol = sleight.nth(0, quoted).value
   assert(symbol == "quote", "got symbol " .. symbol .. " expected quote")
-  assert_expr_kind(quoted.value[2].kind, "List")
-  local quoted_list = quoted.value[2].value
-  assert_expr_value_len(#quoted_list, 2)
-  assert_expr_kind(quoted_list[1].kind, "Number")
-  local first = quoted_list[1].value
+  assert_expr_kind(sleight.nth(1, quoted).kind, "Number")
+  local first = sleight.nth(1, quoted).value
   assert(first == 2, "got " .. first .. " expected 2")
-  assert_expr_kind(quoted_list[2].kind, "Number")
-  local second = quoted_list[2].value
+  assert_expr_kind(sleight.nth(2, quoted).kind, "Number")
+  local second = sleight.nth(2, quoted).value
   assert(second == 3, "got " .. second .. " expected 3")
 end
 
@@ -309,14 +310,14 @@ function test_lambda()
   local env = Environment:new()
   local fn = env:eval_expr(ast)
   assert(fn.kind == "Function", "got kind " .. fn.kind .. " expected" .. "Function")
-  assert(fn.params.kind == "List", "expected function params to be a list")
-  assert(#fn.params.value == 1, "expected function to have 1 parameter")
-  assert(fn.params.value[1].kind == "Symbol", "expected parameter to be a Symbol")
-  assert(fn.params.value[1].value == "x", "expected parameter to be the Symbol x")
-  assert(fn.body.kind == "List", "expected function body to be a list")
-  assert(#fn.body.value == 3, "expected function body to have 3 elements")
-  assert(fn.body.value[1].kind == "Symbol", "expected parameter to be a Symbol")
-  assert(fn.body.value[1].value == "+", "expected parameter to be the Symbol +")
+  assert(fn.params.kind == "Cons", "expected function params to be a list")
+  assert(length(fn.params) == 1, "expected function to have 1 parameter")
+  assert(nth(0, fn.params).kind == "Symbol", "expected parameter to be a Symbol")
+  assert(nth(0, fn.params).value == "x", "expected parameter to be the Symbol x")
+  assert(fn.body.kind == "Cons", "expected function body to be a list")
+  assert(length(fn.body) == 3, "expected function body to have 3 elements")
+  assert(nth(0, fn.body).kind == "Symbol", "expected parameter to be a Symbol")
+  assert(nth(0, fn.body).value == "+", "expected parameter to be the Symbol +")
 end
 
 function test_apply()
@@ -340,6 +341,22 @@ function test_eval_quote()
   assert(result["value"] == "x", "expected x got " .. result["value"])
 end
 
+function test_eval_quote_null()
+  print("running test_eval_quote_null...")
+  local expr = "'()"
+  local ast = read(expr)
+  local result = eval(ast)
+  assert(result["kind"] == "Null", "expected Symbol got " .. result["kind"])
+end
+
+function test_eval_quote_list()
+  print("running test_eval_quote_list...")
+  local expr = "'(1 2 3)"
+  local ast = read(expr)
+  local result = eval(ast)
+  assert(result["kind"] == "Cons", "expected Symbol got " .. result["kind"])
+end
+
 function test()
   test_lex()
   test_lex_multiline()
@@ -358,6 +375,8 @@ function test()
   test_lambda()
   test_apply()
   test_eval_quote()
+  test_eval_quote_null()
+  test_eval_quote_list()
 end
 
 test()

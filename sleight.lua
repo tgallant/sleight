@@ -152,6 +152,10 @@ function Number:new(value)
   return setmetatable(new_number, self)
 end
 
+function Number:repr()
+  return self.value
+end
+
 String = {}
 
 function String:new(value)
@@ -161,6 +165,10 @@ function String:new(value)
   }
   self.__index = self
   return setmetatable(new_string, self)
+end
+
+function String:repr()
+  return self.value
 end
 
 List = {}
@@ -192,132 +200,6 @@ Null = {
     return "()"
   end
 }
-
-Parser = {}
-
-function Parser:new(tokens)
-  local new_parser = {
-    tokens = tokens,
-    current = 1,
-    ast = {},
-  }
-  self.__index = self
-  return setmetatable(new_parser, self)
-end
-
-function Parser:current_token()
-  return self.tokens[self.current]
-end
-
-function Parser:is_end()
-  local token = self:current_token()
-  return token.kind == "EOF"
-end
-
-function Parser:advance()
-  if not self:is_end() then
-    self.current = self.current + 1
-  end
-end
-
-function Parser:check(expected)
-  local token = self:current_token()
-  return token.kind == expected
-end
-
-function Parser:expect(expected)
-  assert(self:check(expected), "expected " .. expected)
-  self:advance()
-end
-
-function Parser:parse_list()
-  self:expect("LParen")
-  local value = {}
-  while not self:check("RParen") and not self:is_end() do
-    table.insert(value, self:parse_expr())
-  end
-  self:expect("RParen")
-  if #value == 0 then
-    return Null
-  end
-  return List:new(value)
-end
-
-function Parser:parse_atom()
-  local token = self:current_token()
-  self:advance()
-  if token.lexeme == "#t" then
-    return Boolean.True
-  elseif token.lexeme == "#f" then
-    return Boolean.False
-  end
-  local num = tonumber(token.lexeme)
-  if num then
-    return Number:new(num)
-  end
-  return Symbol:new(token.lexeme)
-end
-
-function Parser:parse_quote()
-  self:expect("Quote")
-  local value = {Symbol:new("quote"), self:parse_expr()}
-  return List:new(value)
-end
-
-function Parser:parse_expr()
-  local token = self:current_token()
-  if token.kind == "Quote" then
-    return self:parse_quote()
-  elseif token.kind == "LParen" then
-    return self:parse_list()
-  elseif token.kind == "Atom" then
-    return self:parse_atom()
-  elseif token.kind == "String" then
-    self:advance()
-    return String:new(token.lexeme)
-  elseif token.kind == "RParen" then
-    print("error: unexpected RParen")
-  else
-    print("unknown token?")
-  end
-end
-
-function Parser:parse()
-  local ast = {}
-  local begin = Symbol:new("begin")
-  table.insert(ast, begin)
-  while not self:is_end() do
-    local expr = self:parse_expr()
-    table.insert(ast, expr)
-  end
-  return List:new(ast)
-end
-
-Function = {}
-
-function Function:new(params, body, closure)
-  local new_fn = {
-    kind = "Function",
-    params = params,
-    body = body,
-    closure = closure,
-  }
-  self.__index = self
-  return setmetatable(new_fn, self)
-end
-
-Macro = {}
-
-function Macro:new(params, body, closure)
-  local new_macro = {
-    kind = "Macro",
-    params = params,
-    body = body,
-    closure = closure,
-  }
-  self.__index = self
-  return setmetatable(new_macro, self)
-end
 
 Cons = {}
 
@@ -395,6 +277,172 @@ function cdr(p)
 	return p.cdr
 end
 
+function length(p)
+  if p.kind == "Null" then
+    return 0
+  end
+  local count = 1
+  local rest = cdr(p)
+  while not is_null(rest) do
+    count = count + 1
+    rest = cdr(rest)
+  end
+  return count
+end
+
+function nth(n, p)
+  local count = 0
+  local cur = car(p)
+  local rest = cdr(p)
+  while not is_null(rest) and count < n do
+    cur = car(rest)
+    rest = cdr(rest)
+    count = count + 1
+  end
+  if is_null(rest) and n > count then
+    return Null
+  end
+  return cur
+end
+
+Parser = {}
+
+function Parser:new(tokens)
+  local new_parser = {
+    tokens = tokens,
+    current = 1,
+    ast = {},
+  }
+  self.__index = self
+  return setmetatable(new_parser, self)
+end
+
+function Parser:current_token()
+  return self.tokens[self.current]
+end
+
+function Parser:is_end()
+  local token = self:current_token()
+  return token.kind == "EOF"
+end
+
+function Parser:advance()
+  if not self:is_end() then
+    self.current = self.current + 1
+  end
+end
+
+function Parser:check(expected)
+  local token = self:current_token()
+  return token.kind == expected
+end
+
+function Parser:expect(expected)
+  assert(self:check(expected), "expected " .. expected)
+  self:advance()
+end
+
+function Parser:parse_list()
+  self:expect("LParen")
+  local elements = {}
+  while not self:check("RParen") and not self:is_end() do
+    table.insert(elements, self:parse_expr())
+  end
+  if #elements == 0 then
+    self:expect("RParen")
+    return Null
+  end
+  local value = Null
+  for i = #elements, 1, -1 do
+    value = cons(elements[i], value)
+  end
+  self:expect("RParen")
+  return value
+end
+
+function Parser:parse_atom()
+  local token = self:current_token()
+  self:advance()
+  if token.lexeme == "#t" then
+    return Boolean.True
+  elseif token.lexeme == "#f" then
+    return Boolean.False
+  end
+  local num = tonumber(token.lexeme)
+  if num then
+    return Number:new(num)
+  end
+  return Symbol:new(token.lexeme)
+end
+
+function Parser:parse_quote()
+  self:expect("Quote")
+  local value = self:parse_expr()
+  if value.kind == "Null" then
+    return Null
+  end
+  return Cons:new(Symbol:new("quote"), value)
+end
+
+function Parser:parse_expr()
+  local token = self:current_token()
+  if token.kind == "Quote" then
+    return self:parse_quote()
+  elseif token.kind == "LParen" then
+    return self:parse_list()
+  elseif token.kind == "Atom" then
+    return self:parse_atom()
+  elseif token.kind == "String" then
+    self:advance()
+    return String:new(token.lexeme)
+  elseif token.kind == "RParen" then
+    print("error: unexpected RParen")
+  else
+    print("unknown token?")
+  end
+end
+
+function Parser:parse()
+  local ast = {}
+  local elements = {}
+  while not self:is_end() do
+    local expr = self:parse_expr()
+    table.insert(elements, expr)
+  end
+  local value = Null
+  for i = #elements, 1, -1 do
+    value = cons(elements[i], value)
+  end
+  value = cons(Symbol:new("begin"), value)
+  return value
+end
+
+Function = {}
+
+function Function:new(params, body, closure)
+  local new_fn = {
+    kind = "Function",
+    params = params,
+    body = body,
+    closure = closure,
+  }
+  self.__index = self
+  return setmetatable(new_fn, self)
+end
+
+Macro = {}
+
+function Macro:new(params, body, closure)
+  local new_macro = {
+    kind = "Macro",
+    params = params,
+    body = body,
+    closure = closure,
+  }
+  self.__index = self
+  return setmetatable(new_macro, self)
+end
+
 function str(val)
   if val == true then
     return "#t"
@@ -470,6 +518,8 @@ function Environment:new()
       ["cons"] = cons,
       ["car"] = car,
       ["cdr"] = cdr,
+      ["length"] = length,
+      ["nth"] = nth,
       ["print"] = pprint,
       ["assert"] = assert,
     },
@@ -490,70 +540,75 @@ function Environment:copy()
 end
 
 function Environment:eval_if(args)
-  assert(#args == 4, "invalid arity: if expects 3 arguments")
-  if self:eval_expr(args[2]) then
-    return self:eval_expr(args[3])
+  assert(length(args) == 4, "invalid arity: if expects 3 arguments")
+  if self:eval_expr(nth(1, args)) then
+    return self:eval_expr(nth(2, args))
   else
-    return self:eval_expr(args[4])
+    return self:eval_expr(nth(3, args))
   end
 end
 
 function Environment:eval_define(args)
-  assert(#args == 3, "invalid arity: define expects 2 arguments")
-  if args[3].kind == "List" then
-    self.bindings[args[2].value] = self:eval_expr(args[3])
+  assert(length(args) == 3, "invalid arity: define expects 2 arguments")
+  if nth(2, args).kind == "Cons" then
+    self.bindings[nth(1, args).value] = self:eval_expr(nth(2, args))
   else
-    self.bindings[args[2].value] = args[3].value
+    self.bindings[nth(1, args).value] = nth(2, args).value
   end
 end
 
 function Environment:expand_macro(args)
-  assert(#args == 3, "invalid arity: define-macro expects 2 arguments")
-  if args[3].kind == "List" then
-    self.bindings[args[2].value] = self:eval_expr(args[3])
+  assert(length(args) == 3, "invalid arity: define-macro expects 2 arguments")
+  if nth(2, args).kind == "Cons" then
+    self.bindings[nth(1, args).value] = self:eval_expr(nth(2, args))
   else
-    self.bindings[args[2].value] = args[3].value
+    self.bindings[nth(1, args).value] = nth(2, args).value
   end
 end
 
 function Environment:eval_define_macro(args)
-  assert(#args == 3, "invalid arity: define-macro expects 2 arguments")
-  if args[3].kind == "List" then
-    self.bindings[args[2].value] = self:eval_expr(args[3])
+  assert(length(args) == 3, "invalid arity: define-macro expects 2 arguments")
+  if nth(2, args).kind == "Cons" then
+    self.bindings[nth(1, args).value] = self:eval_expr(nth(2, args))
   else
-    self.bindings[args[2].value] = args[3].value
+    self.bindings[nth(1, args).value] = nth(2, args).value
   end
 end
 
 function Environment:eval_lambda(args)
-  assert(#args == 3, "invalid arity: lambda expects 2 arguments")
-  local params = args[2]
-  local body = args[3]
+  assert(length(args) == 3, "invalid arity: lambda expects 2 arguments")
+  local params = nth(1, args)
+  local body = nth(2, args)
   local closure = self:copy()
   return Function:new(params, body, closure)
 end
 
 function Environment:apply(elements)
   local args = {}
-  for index, expr in ipairs(elements) do
-    local res = self:eval_expr(expr)
-    table.insert(args, self:eval_expr(expr))
+  local first = car(elements)
+  local rest = cdr(elements)
+  local fn = self:eval_expr(first)
+  table.insert(args, fn)
+  while not is_null(rest) do
+    local expr = car(rest)
+    local val = self:eval_expr(expr)
+    table.insert(args, val)
+    rest = cdr(rest)
   end
-  local fn = args[1]
   if type(fn) == "function" then
     local status, res = pcall(table.unpack(args))
     assert(status, res)
     return res
   elseif fn.kind == "Function" then
-    assert(#fn.params.value == #args - 1, "function receieved incorrect number or params")
-    for i = 1, #fn.params.value, 1 do
-      fn.closure.bindings[fn.params.value[i].value] = args[i + 1]
+    assert(length(fn.params) == #args - 1, "function receieved incorrect number or params")
+    for i = 1, length(fn.params), 1 do
+      fn.closure.bindings[nth(i - 1, fn.params).value] = args[i + 1]
     end
     return fn.closure:eval_expr(fn.body)
   elseif fn.kind == "Macro" then
-    assert(#fn.params.value == #args - 1, "macro receieved incorrect number or params")
-    for i = 1, #fn.params.value, 1 do
-      fn.closure.bindings[fn.params.value[i].value] = args[i + 1]
+    assert(length(fn.params) == #args - 1, "macro receieved incorrect number or params")
+    for i = 1, length(fn.params), 1 do
+      fn.closure.bindings[nth(i - 1, fn.params).value] = args[i + 1]
     end
     local expanded = self:expand_macro(fn)
     return fn.closure:eval_expr(expanded)
@@ -564,21 +619,21 @@ end
 
 function Environment:eval_begin(elements)
   local result = nil
-  for index, expr in ipairs(elements) do
-    if index > 1 then
-      result = self:eval_expr(expr)
-    end
+  local rest = cdr(elements)
+  while not is_null(rest) do
+    local expr = car(rest)
+    result = self:eval_expr(expr)
+    rest = cdr(rest)
   end
   return result
 end
 
 function Environment:eval_quote(elements)
-  assert(#elements == 2, "invalid arity: quote expects 1 argument")
-  return elements[2]
+  return cdr(elements)
 end
 
 function Environment:eval_list(elements)
-  local first = elements[1]
+  local first = car(elements)
   local is_symbol = first.kind == "Symbol"
   if is_symbol and first.value == "if" then
     return self:eval_if(elements)
@@ -606,8 +661,10 @@ function Environment:eval_expr(expr)
     return expr.value
   elseif expr.kind == "Boolean" then
     return expr.value
-  elseif expr.kind == "List" then
-    return self:eval_list(expr.value)
+  elseif expr.kind == "Cons" then
+    return self:eval_list(expr)
+  elseif expr.kind == "Null" then
+    return Null
   else
     return
   end
@@ -658,6 +715,12 @@ function run_file(path)
 end
 
 return {
+  cons = cons,
+  car = car,
+  cdr = cdr,
+  is_null = is_null,
+  length = length,
+  nth = nth,
   Parser = Parser,
   Environment = Environment,
   lex = lex,
