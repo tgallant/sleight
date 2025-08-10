@@ -627,6 +627,15 @@ function Environment:eval_quote(elements)
   return cdr(elements)
 end
 
+function Environment:eval_tests(elements)
+  for key, value in pairs(self.bindings) do
+    if string.find(key, "^test-") == 1 then
+      local expr = cons(Symbol:new(key), Null)
+      self:eval_expr(expr)
+    end
+  end
+end
+
 function Environment:eval_list(elements)
   local first = car(elements)
   local is_symbol = first.kind == "Symbol"
@@ -642,6 +651,8 @@ function Environment:eval_list(elements)
     return self:eval_begin(elements)
   elseif is_symbol and first.value == "quote" then
     return self:eval_quote(elements)
+  elseif is_symbol and first.value == "test!" then
+    return self:eval_tests(elements)
   else
     return self:apply(elements)
   end

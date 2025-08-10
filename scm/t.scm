@@ -71,12 +71,6 @@
 (define main
   (lambda ()
     (print "starting scm/t.scm tests")
-    (test-null?)
-    (test-pair?)
-    (test-list?)
-    (test-symbol?)
-    (test-boolean?)
-    (test-number?)
-    (test-string?)))
+    (test!)))
 
 (main)
