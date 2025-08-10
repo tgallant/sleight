@@ -77,12 +77,10 @@ function Lexer:handle_string()
   if self.string_open then
     self.string_open = false
     local value = table.concat(self.buffer, "")
-    if value ~= "" then
-      local col_start = self.col - #self.buffer - 1
-      local token = Token:new("String", value, self.line, col_start)
-      table.insert(self.tokens, token)
-      self.buffer = {}
-    end
+    local col_start = self.col - #self.buffer - 1
+    local token = Token:new("String", value, self.line, col_start)
+    table.insert(self.tokens, token)
+    self.buffer = {}
   else
     self.string_open = true
   end
