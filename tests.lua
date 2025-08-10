@@ -315,9 +315,9 @@ function test_lambda()
   assert(nth(0, fn.params).kind == "Symbol", "expected parameter to be a Symbol")
   assert(nth(0, fn.params).value == "x", "expected parameter to be the Symbol x")
   assert(fn.body.kind == "Cons", "expected function body to be a list")
-  assert(length(fn.body) == 3, "expected function body to have 3 elements")
+  assert(length(fn.body) == 2, "expected function body to have 2 elements")
   assert(nth(0, fn.body).kind == "Symbol", "expected parameter to be a Symbol")
-  assert(nth(0, fn.body).value == "+", "expected parameter to be the Symbol +")
+  assert(nth(0, fn.body).value == "begin", "expected parameter to be the Symbol begin")
 end
 
 function test_apply()

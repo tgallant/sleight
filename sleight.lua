@@ -570,9 +570,9 @@ function Environment:eval_define_macro(args)
 end
 
 function Environment:eval_lambda(args)
-  assert(length(args) == 3, "invalid arity: lambda expects 2 arguments")
-  local params = nth(1, args)
-  local body = nth(2, args)
+  assert(length(args) >= 3, "invalid arity: lambda expects 2 arguments")
+  local params = car(cdr(args))
+  local body = cons(Symbol:new("begin"), cdr(cdr(args)))
   local closure = self:copy()
   return Function:new(params, body, closure)
 end
