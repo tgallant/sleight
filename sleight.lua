@@ -506,15 +506,9 @@ function Environment:new()
         end
         return a.kind == "Symbol"
       end,
-      ["list?"] = function(a)
-        if type(a) ~= "table" then
-          return false
-        end
-        return a.kind == "List"
-      end,
-      ["null?"] = function(a)
-        return type(a) == nil
-      end,
+      ["pair?"] = is_pair,
+      ["list?"] = is_list,
+      ["null?"] = is_null,
       ["cons"] = cons,
       ["car"] = car,
       ["cdr"] = cdr,
