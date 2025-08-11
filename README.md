@@ -5,8 +5,7 @@ Sleight is a toy scheme implementation written in lua.
 ## Standard Library
 
 - [X] assert
-- [ ] test
-- [ ] test-run
+- [X] test!
 - [ ] basic macros
 - [ ] define macro
 - [ ] arrow macros
@@ -34,13 +33,17 @@ Sleight is a toy scheme implementation written in lua.
 - [ ] builtin testing
   - [X] test! function that runs all fns named "test-"
   - [ ] make sure tests always run in the same order
+- [ ] support comments
 - [ ] add support for macros
   - [X] add support for quote
   - [ ] add support for quasiquote
   - [ ] implement macro primitives
   - [ ] handle macros in evaluator
-- [ ] support define function syntax
+- [X] support define function syntax
 - [ ] start building standard lib
+  - [ ] create scm/lib.scm
+  - [ ] load lib.scm into environment before eval
 - [ ] better error handling
 - [ ] repl history
+- [ ] support geiser repl in emacs
 - [ ] compile to lua bytecode (?)
