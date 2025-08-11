@@ -544,8 +544,15 @@ function Environment:eval_if(args)
 end
 
 function Environment:eval_define(args)
-  assert(length(args) == 3, "invalid arity: define expects 2 arguments")
-  if nth(2, args).kind == "Cons" then
+  assert(length(args) >= 3, "invalid arity: define expects 2 arguments")
+  local first = nth(1, args)
+  if first.kind == "Cons" then
+    local name = car(first)
+    local rest = cdr(first)
+    local body = cdr(cdr(args))
+    local expr = cons(Symbol:new("lambda"), cons(rest, body))
+    self.bindings[name.value] = self:eval_expr(expr)
+  elseif nth(2, args).kind == "Cons" then
     self.bindings[nth(1, args).value] = self:eval_expr(nth(2, args))
   else
     self.bindings[nth(1, args).value] = nth(2, args).value
