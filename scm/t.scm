@@ -1,5 +1,8 @@
+;; tests for scheme internals in scheme itself
+
 (define (test-null?)
-  (print "running test-null?...")
+  ;; testing comment in function definition
+  (print "running test-null?...")  ; testing end of line comment
   (assert (null? '()) "expected '() to be considered null")
   (assert (not (null? #f)) "expected value to not be considered null")
   (assert (not (null? 123)) "expected value to not be considered null")

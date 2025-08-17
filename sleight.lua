@@ -20,6 +20,7 @@ function Lexer:new()
     line = 1,
     col = 1,
     string_open = false,
+    in_comment = false,
   }
   self.__index = self
   return setmetatable(new_lexer, self)
@@ -87,9 +88,16 @@ function Lexer:handle_string()
   self:advance_col()
 end
 
+function Lexer:handle_comment()
+  if not self.in_comment then
+    self.in_comment = true
+  end
+end
+
 function Lexer:handle_newline()
   self:clear_buffer()
   self:advance_line()
+  self.in_comment = false
 end
 
 function Lexer:handle_eof()
@@ -103,6 +111,12 @@ function Lexer:lex(expr)
       self:handle_string()
     elseif self.string_open then
       self:add_to_buffer(char)
+    elseif char == "\n" then
+      self:handle_newline()
+    elseif char == ";" then
+      self:handle_comment()
+    elseif self.in_comment then
+      self:advance_col()
     elseif char == "'" then
       self:handle_quote()
     elseif char == "(" then
@@ -113,8 +127,6 @@ function Lexer:lex(expr)
       self:advance_col()
     elseif char == " " then
       self:handle_atom()
-    elseif char == "\n" then
-      self:handle_newline()
     else
       self:add_to_buffer(char)
     end
