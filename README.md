@@ -33,7 +33,7 @@ Sleight is a toy scheme implementation written in lua.
 - [ ] builtin testing
   - [X] test! function that runs all fns named "test-"
   - [ ] make sure tests always run in the same order
-- [ ] support comments
+- [X] support comments
 - [ ] add support for macros
   - [X] add support for quote
   - [ ] add support for quasiquote
